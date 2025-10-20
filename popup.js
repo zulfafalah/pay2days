@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const statusText = document.getElementById('status');
     const nameInput = document.getElementById('nameInput');
     const salaryInput = document.getElementById('salaryInput');
+    const workingDaysInput = document.getElementById('workingDaysInput');
     const submitBtn = document.getElementById('submitBtn');
     const debugBtn = document.createElement('button');
     
@@ -18,7 +19,7 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error('Pay2Days: status element not found');
         return;
     }
-    if (!nameInput || !salaryInput || !submitBtn) {
+    if (!nameInput || !salaryInput || !workingDaysInput || !submitBtn) {
         console.error('Pay2Days: One or more input elements not found');
         return;
     }
@@ -114,13 +115,35 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 500); // 500ms delay untuk debouncing
     });
     
+    workingDaysInput.addEventListener('input', function() {
+        saveValues();
+        updateSubmitButton();
+        
+        // Update calculations in real-time when working days change
+        clearTimeout(workingDaysInput.updateTimeout);
+        workingDaysInput.updateTimeout = setTimeout(() => {
+            if (workingDaysInput.value.trim() !== '') {
+                chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+                    if (tabs[0]) {
+                        chrome.tabs.sendMessage(tabs[0].id, {
+                            action: 'updateSalary'
+                        }).catch(error => {
+                            console.log('Pay2Days: Content script not available:', error);
+                        });
+                    }
+                });
+            }
+        }, 500); // 500ms delay untuk debouncing
+    });
+    
     // Submit button event listener
     submitBtn.addEventListener('click', function() {
         const name = nameInput.value.trim();
         const salary = salaryInput.value.trim();
+        const workingDays = workingDaysInput.value.trim();
         
-        if (!name || !salary) {
-            alert('Please fill in both name and monthly salary fields.');
+        if (!name || !salary || !workingDays) {
+            alert('Please fill in all fields: name, monthly salary, and working days.');
             return;
         }
         
@@ -128,6 +151,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const submittedData = {
             name: name,
             salary: parseFloat(salary),
+            workingDays: parseInt(workingDays),
             submittedAt: new Date().toISOString()
         };
         
@@ -165,7 +189,8 @@ document.addEventListener('DOMContentLoaded', function() {
     function saveValues() {
         const data = {
             name: nameInput.value,
-            salary: salaryInput.value
+            salary: salaryInput.value,
+            workingDays: workingDaysInput.value
         };
         chrome.storage.local.set(data, function() {
             console.log('Pay2Days: Values saved');
@@ -173,12 +198,15 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function loadSavedValues() {
-        chrome.storage.local.get(['name', 'salary'], function(result) {
+        chrome.storage.local.get(['name', 'salary', 'workingDays'], function(result) {
             if (result.name) {
                 nameInput.value = result.name;
             }
             if (result.salary) {
                 salaryInput.value = result.salary;
+            }
+            if (result.workingDays) {
+                workingDaysInput.value = result.workingDays;
             }
             updateSubmitButton();
         });
@@ -187,8 +215,9 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateSubmitButton() {
         const hasName = nameInput.value.trim() !== '';
         const hasSalary = salaryInput.value.trim() !== '';
+        const hasWorkingDays = workingDaysInput.value.trim() !== '';
         
-        if (hasName && hasSalary) {
+        if (hasName && hasSalary && hasWorkingDays) {
             submitBtn.disabled = false;
             submitBtn.style.opacity = '1';
         } else {
