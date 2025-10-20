@@ -1,0 +1,44 @@
+{
+  "manifest_version": 3,
+  "name": "Pay2Days - Price Manipulator",
+  "version": "1.0.0",
+  "description": "Chrome extension to manipulate DOM prices on Shopee pages for demonstration purposes",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Pay2Days - Price Manipulator"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.shopee.co.id/*",
+        "*://*.shopee.com/*",
+        "*://*.shopee.com.my/*",
+        "*://*.shopee.sg/*",
+        "*://*.shopee.ph/*",
+        "*://*.shopee.vn/*",
+        "*://*.shopee.th/*",
+        "*://*.shopee.tw/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": [
+    "storage",
+    "activeTab",
+    "tabs"
+  ],
+  "host_permissions": [
+    "*://*.shopee.co.id/*",
+    "*://*.shopee.com/*",
+    "*://*.shopee.com.my/*",
+    "*://*.shopee.sg/*",
+    "*://*.shopee.ph/*",
+    "*://*.shopee.vn/*",
+    "*://*.shopee.th/*",
+    "*://*.shopee.tw/*"
+  ]
+}
