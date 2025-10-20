@@ -4,7 +4,7 @@ body {
     margin: 0;
     padding: 0;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #e65100 0%, #d84315 50%, #bf360c 100%);
     color: white;
 }
 
@@ -13,6 +13,19 @@ body {
     display: flex;
     flex-direction: column;
     gap: 15px;
+    position: relative;
+}
+
+.container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><radialGradient id="g"><stop offset="0%" stop-color="rgba(255,255,255,0.1)"/><stop offset="100%" stop-color="rgba(255,255,255,0)"/></radialGradient></defs><circle cx="20" cy="20" r="2" fill="url(%23g)"/><circle cx="80" cy="80" r="2" fill="url(%23g)"/></svg>') repeat;
+    opacity: 0.3;
+    pointer-events: none;
 }
 
 .header {
@@ -24,6 +37,10 @@ body {
     font-size: 24px;
     font-weight: bold;
     text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    background: linear-gradient(45deg, #ffffff, #ffebcd);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 .subtitle {
@@ -38,6 +55,8 @@ body {
     flex-direction: column;
     gap: 12px;
     align-items: center;
+    position: relative;
+    z-index: 1;
 }
 
 .input-section {
@@ -66,16 +85,17 @@ body {
     border: none;
     border-radius: 6px;
     font-size: 14px;
-    background-color: rgba(255,255,255,0.9);
+    background-color: rgba(255,255,255,0.95);
     color: #333;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 8px rgba(230, 81, 0, 0.25);
     transition: all 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .input-group input:focus {
     outline: none;
     background-color: white;
-    box-shadow: 0 0 0 2px rgba(255,255,255,0.5), 0 2px 8px rgba(0,0,0,0.2);
+    box-shadow: 0 0 0 2px rgba(230, 81, 0, 0.6), 0 2px 8px rgba(0,0,0,0.2);
     transform: translateY(-1px);
 }
 
@@ -100,11 +120,13 @@ body {
 .status.on {
     background-color: #4CAF50;
     color: white;
+    border: 2px solid rgba(255, 255, 255, 0.3);
 }
 
 .status.off {
     background-color: #FF5722;
     color: white;
+    border: 2px solid rgba(255, 255, 255, 0.3);
 }
 
 .btn {
@@ -142,15 +164,17 @@ body {
 }
 
 .btn-submit {
-    background-color: #9C27B0;
+    background: linear-gradient(135deg, #e65100 0%, #d84315 100%);
     color: white;
     margin-top: 10px;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
 }
 
 .btn-submit:hover {
-    background-color: #7B1FA2;
+    background: linear-gradient(135deg, #d84315 0%, #bf360c 100%);
     transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    box-shadow: 0 5px 15px rgba(230, 81, 0, 0.5);
 }
 
 .btn-submit:disabled {
@@ -173,10 +197,12 @@ body {
 }
 
 .info {
-    background-color: rgba(255,255,255,0.1);
+    background-color: rgba(255, 255, 255, 0.15);
     padding: 12px;
     border-radius: 8px;
     margin-top: 5px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
 }
 
 .info p {
