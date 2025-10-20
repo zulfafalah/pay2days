@@ -96,6 +96,22 @@ document.addEventListener('DOMContentLoaded', function() {
     salaryInput.addEventListener('input', function() {
         saveValues();
         updateSubmitButton();
+        
+        // Update calculations in real-time as user types (with debouncing)
+        clearTimeout(salaryInput.updateTimeout);
+        salaryInput.updateTimeout = setTimeout(() => {
+            if (salaryInput.value.trim() !== '') {
+                chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+                    if (tabs[0]) {
+                        chrome.tabs.sendMessage(tabs[0].id, {
+                            action: 'updateSalary'
+                        }).catch(error => {
+                            console.log('Pay2Days: Content script not available:', error);
+                        });
+                    }
+                });
+            }
+        }, 500); // 500ms delay untuk debouncing
     });
     
     // Submit button event listener
@@ -130,6 +146,19 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Update status to show submission
             updateUI(true); // Assuming extension is on
+            
+            // Notify content script about salary update
+            chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+                if (tabs[0]) {
+                    chrome.tabs.sendMessage(tabs[0].id, {
+                        action: 'updateSalary'
+                    }).then(response => {
+                        console.log('Pay2Days: Salary update sent to content script:', response);
+                    }).catch(error => {
+                        console.log('Pay2Days: Content script not available for salary update:', error);
+                    });
+                }
+            });
         });
     });
     
