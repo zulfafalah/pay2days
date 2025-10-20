@@ -9,6 +9,20 @@ document.addEventListener('DOMContentLoaded', function() {
     const submitBtn = document.getElementById('submitBtn');
     const debugBtn = document.createElement('button');
     
+    // Check if essential elements exist
+    if (!toggleBtn) {
+        console.error('Pay2Days: toggleBtn element not found');
+        return;
+    }
+    if (!statusText) {
+        console.error('Pay2Days: status element not found');
+        return;
+    }
+    if (!nameInput || !salaryInput || !submitBtn) {
+        console.error('Pay2Days: One or more input elements not found');
+        return;
+    }
+    
     // Load saved values
     loadSavedValues();
     
