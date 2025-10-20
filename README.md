@@ -1,68 +1,81 @@
-# Pay2Days - Price Manipulator Extension
+# Pay2Days - Shopee Price to Working Days Converter
 
-Chrome extension yang dapat memanipulasi DOM untuk menambahkan string "test" pada harga-harga di halaman Shopee. Extension ini dibuat untuk tujuan demonstrasi manipulasi DOM.
+A Chrome extension that converts Shopee item prices into how many working days are needed to afford them. This extension helps provide a more understandable perspective on the value of items based on your daily wage.
 
-## Fitur
+## Features
 
-- ✅ Otomatis mendeteksi halaman Shopee
-- ✅ Menambahkan string "test" pada semua harga yang ditemukan
+- ✅ Automatically detects Shopee pages
+- ✅ Converts item prices to number of working days
+- ✅ Monthly salary input for personal calculation
 - ✅ Toggle ON/OFF functionality
-- ✅ Observasi konten dinamis (untuk produk yang dimuat secara lazy loading)
-- ✅ Debug mode untuk analisis struktur DOM
-- ✅ Badge indicator di extension icon
+- ✅ Dynamic content observation (for lazy-loaded products)
+- ✅ Debug mode for DOM structure analysis
+- ✅ Badge indicator on extension icon
 
-## Struktur File
+## File Structure
 
 ```
 Pay2Days/
-├── manifest.json       # Configuration extension
-├── popup.html         # UI popup extension
-├── popup.js          # Script popup
-├── styles.css        # Styling popup
-├── content.js        # Content script (manipulasi DOM)
+├── manifest.json       # Extension configuration
+├── popup.html         # Extension popup UI
+├── popup.js          # Popup script
+├── styles.css        # Popup styling
+├── content.js        # Content script (DOM manipulation)
 ├── background.js     # Background service worker
-├── struktur_dom.html # Referensi struktur DOM Shopee
-└── README.md         # Dokumentasi
+├── struktur_dom.html # Shopee DOM structure reference
+└── README.md         # Documentation
 ```
 
-## Cara Instalasi
+## Installation
 
-1. Buka Chrome dan navigasi ke `chrome://extensions/`
-2. Aktifkan "Developer mode" di pojok kanan atas
-3. Klik "Load unpacked" dan pilih folder `Pay2Days`
-4. Extension akan terpasang dan muncul di toolbar
+1. Open Chrome and navigate to `chrome://extensions/`
+2. Enable "Developer mode" in the top right corner
+3. Click "Load unpacked" and select the `Pay2Days` folder
+4. The extension will be installed and appear in the toolbar
 
-## Cara Penggunaan
+## How to Use
 
-1. Buka halaman pencarian Shopee (contoh: https://shopee.co.id/search?keyword=samsung)
-2. Klik icon extension Pay2Days di toolbar
-3. Extension akan otomatis ON dan menambahkan "test" pada harga
-4. Gunakan toggle button untuk mengaktifkan/menonaktifkan
-5. Gunakan tombol "Debug DOM" untuk melihat struktur DOM di console
+1. Open a Shopee search page (example: https://shopee.co.id/search?keyword=samsung)
+2. Click the Pay2Days extension icon in the toolbar
+3. Input your monthly salary in the extension popup
+4. The extension will automatically turn ON and display working days for each item
+5. Use the toggle button to enable/disable the extension
+6. Use the "Debug DOM" button to view DOM structure in console
 
-## Detail Teknis
+## How It Works
+
+This extension calculates how many working days are needed to buy an item using the formula:
+```
+Working Days = (Item Price / Monthly Salary) × 22 working days
+```
+
+Assumption: 22 working days in a month (Monday-Friday, 4-5 weeks)
+
+## Technical Details
 
 ### Content Script (`content.js`)
-- Menggunakan selector CSS untuk menargetkan elemen harga: `.truncate.text-base\\/5.font-medium`
-- Implementasi MutationObserver untuk mendeteksi konten dinamis
-- Menambahkan atribut `data-pay2days-modified` untuk mencegah duplikasi
-- Periodic check setiap 3 detik untuk memastikan tidak ada yang terlewat
+- Uses CSS selector to target price elements: `.truncate.text-base\\/5.font-medium`
+- Implements MutationObserver to detect dynamic content
+- Calculates and displays working days based on price and monthly salary
+- Adds `data-pay2days-modified` attribute to prevent duplication
+- Periodic check every 3 seconds to ensure nothing is missed
 
 ### Background Script (`background.js`)
-- Service worker untuk mengelola state extension
-- Komunikasi antar komponen (popup ↔ content script)
+- Service worker to manage extension state
+- Communication between components (popup ↔ content script)
 - Badge management (ON/OFF indicator)
-- State persistence menggunakan chrome.storage
+- State persistence using chrome.storage
 
 ### Popup Interface
-- Toggle button untuk mengaktifkan/menonaktifkan extension
-- Status indicator (ON/OFF dengan warna berbeda)
-- Debug button untuk analisis DOM
-- Responsive design dengan gradient background
+- Input field for entering monthly salary
+- Toggle button to enable/disable extension
+- Status indicator (ON/OFF with different colors)
+- Debug button for DOM analysis
+- Responsive design with gradient background
 
 ## Target Selector
 
-Extension ini menargetkan elemen harga dengan struktur DOM seperti:
+This extension targets price elements with DOM structure like:
 
 ```html
 <div class="truncate flex items-baseline">
@@ -72,28 +85,36 @@ Extension ini menargetkan elemen harga dengan struktur DOM seperti:
 </div>
 ```
 
+And adds working days display below it:
+```html
+<div class="pay2days-info">
+  <span style="color: #1976d2; font-size: 12px;">≈ 3.2 working days</span>
+</div>
+```
+
 ## Permissions
 
-- `storage`: Untuk menyimpan state extension
-- `activeTab`: Untuk mengakses tab aktif
-- `tabs`: Untuk komunikasi dengan content script
-- `host_permissions`: Akses ke domain Shopee (*.shopee.*)
+- `storage`: To store extension state
+- `activeTab`: To access active tab
+- `tabs`: For communication with content script
+- `host_permissions`: Access to Shopee domains (*.shopee.*)
 
 ## Debugging
 
-1. Buka Developer Tools (F12) di halaman Shopee
-2. Klik tombol "Debug DOM" di popup extension
-3. Check Console untuk melihat:
-   - Elemen yang berhasil dimodifikasi
-   - Struktur DOM yang terdeteksi
-   - Status extension
+1. Open Developer Tools (F12) on Shopee page
+2. Click "Debug DOM" button in extension popup
+3. Check Console to see:
+   - Successfully modified elements
+   - Detected DOM structure
+   - Extension status
 
-## Catatan Keamanan
+## Security Notes
 
-- Extension ini hanya untuk demonstrasi dan pembelajaran
-- Tidak mengumpulkan atau mengirim data pengguna
-- Hanya memodifikasi tampilan lokal (tidak mempengaruhi server)
-- Perubahan hilang setelah refresh halaman
+- This extension is only for personal financial perspective assistance
+- Does not collect or send your salary or financial data
+- All calculations are performed locally in the browser
+- Only modifies local display (does not affect Shopee server)
+- Salary data is stored locally and can be deleted anytime
 
 ## Browser Support
 
@@ -104,25 +125,27 @@ Extension ini menargetkan elemen harga dengan struktur DOM seperti:
 
 ## Development
 
-Untuk development lebih lanjut:
+For further development:
 
-1. Edit file yang diinginkan
-2. Klik "Reload" di `chrome://extensions/` untuk extension Pay2Days
-3. Test di halaman Shopee
-4. Check console untuk error atau debugging info
+1. Edit the desired files
+2. Click "Reload" at `chrome://extensions/` for Pay2Days extension
+3. Test on Shopee pages
+4. Check console for errors or debugging info
 
 ## Troubleshooting
 
-**Extension tidak berfungsi:**
-- Pastikan sudah di halaman Shopee
-- Check console untuk error
-- Reload extension di `chrome://extensions/`
+**Extension not working:**
+- Make sure you're on a Shopee page
+- Make sure monthly salary is entered
+- Check console for errors
+- Reload extension at `chrome://extensions/`
 
-**Harga tidak berubah:**
-- Coba klik "Debug DOM" untuk analisis
-- Pastikan extension dalam status ON
-- Struktur DOM mungkin berubah (perlu update selector)
+**Working days not showing:**
+- Try clicking "Debug DOM" for analysis
+- Make sure extension is in ON status
+- Make sure monthly salary is inputted
+- DOM structure might have changed (need to update selector)
 
-**Badge tidak muncul:**
-- Refresh halaman Shopee
-- Toggle extension OFF lalu ON kembali
+**Badge not appearing:**
+- Refresh Shopee page
+- Toggle extension OFF then ON again
