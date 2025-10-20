@@ -4,19 +4,13 @@
 document.addEventListener('DOMContentLoaded', function() {
     const toggleBtn = document.getElementById('toggleBtn');
     const statusText = document.getElementById('status');
+    const nameInput = document.getElementById('nameInput');
+    const salaryInput = document.getElementById('salaryInput');
+    const submitBtn = document.getElementById('submitBtn');
     const debugBtn = document.createElement('button');
     
-    // Tambahkan debug button
-    debugBtn.textContent = 'Debug DOM';
-    debugBtn.className = 'btn btn-debug';
-    debugBtn.style.marginTop = '10px';
-    debugBtn.style.backgroundColor = '#2196F3';
-    debugBtn.style.color = 'white';
-    debugBtn.style.border = 'none';
-    debugBtn.style.padding = '8px 16px';
-    debugBtn.style.borderRadius = '4px';
-    debugBtn.style.cursor = 'pointer';
-    document.querySelector('.container').appendChild(debugBtn);
+    // Load saved values
+    loadSavedValues();
     
     // Get current state dari background script
     chrome.runtime.sendMessage({action: 'getState'}, function(response) {
@@ -74,18 +68,115 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
-    function updateUI(enabled) {
-        if (enabled) {
-            statusText.textContent = 'Extension is ON - Modifying prices with "test"';
-            statusText.className = 'status on';
-            toggleBtn.textContent = 'Turn OFF';
-            toggleBtn.className = 'btn btn-off';
-        } else {
-            statusText.textContent = 'Extension is OFF';
-            statusText.className = 'status off';
-            toggleBtn.textContent = 'Turn ON';
-            toggleBtn.className = 'btn btn-on';
+    // Input field event listeners
+    nameInput.addEventListener('input', function() {
+        saveValues();
+        updateSubmitButton();
+        // Update UI to reflect name change in status
+        chrome.runtime.sendMessage({action: 'getState'}, function(response) {
+            if (response) {
+                updateUI(response.enabled);
+            }
+        });
+    });
+    salaryInput.addEventListener('input', function() {
+        saveValues();
+        updateSubmitButton();
+    });
+    
+    // Submit button event listener
+    submitBtn.addEventListener('click', function() {
+        const name = nameInput.value.trim();
+        const salary = salaryInput.value.trim();
+        
+        if (!name || !salary) {
+            alert('Please fill in both name and monthly salary fields.');
+            return;
         }
+        
+        // Save the submitted data
+        const submittedData = {
+            name: name,
+            salary: parseFloat(salary),
+            submittedAt: new Date().toISOString()
+        };
+        
+        chrome.storage.local.set({submittedData: submittedData}, function() {
+            console.log('Pay2Days: Data submitted successfully', submittedData);
+            
+            // Show success message
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = 'Submitted!';
+            submitBtn.style.backgroundColor = '#4CAF50';
+            
+            setTimeout(() => {
+                submitBtn.textContent = originalText;
+                submitBtn.style.backgroundColor = '#9C27B0';
+            }, 2000);
+            
+            // Update status to show submission
+            updateUI(true); // Assuming extension is on
+        });
+    });
+    
+    function saveValues() {
+        const data = {
+            name: nameInput.value,
+            salary: salaryInput.value
+        };
+        chrome.storage.local.set(data, function() {
+            console.log('Pay2Days: Values saved');
+        });
+    }
+    
+    function loadSavedValues() {
+        chrome.storage.local.get(['name', 'salary'], function(result) {
+            if (result.name) {
+                nameInput.value = result.name;
+            }
+            if (result.salary) {
+                salaryInput.value = result.salary;
+            }
+            updateSubmitButton();
+        });
+    }
+    
+    function updateSubmitButton() {
+        const hasName = nameInput.value.trim() !== '';
+        const hasSalary = salaryInput.value.trim() !== '';
+        
+        if (hasName && hasSalary) {
+            submitBtn.disabled = false;
+            submitBtn.style.opacity = '1';
+        } else {
+            submitBtn.disabled = true;
+            submitBtn.style.opacity = '0.6';
+        }
+    }
+    
+    function updateUI(enabled) {
+        const userName = nameInput.value ? ` for ${nameInput.value}` : '';
+        
+        // Check if data has been submitted
+        chrome.storage.local.get(['submittedData'], function(result) {
+            let statusSuffix = ' - Modifying prices with "test"';
+            if (result.submittedData) {
+                const submitDate = new Date(result.submittedData.submittedAt).toLocaleDateString();
+                statusSuffix = ` - Data submitted on ${submitDate}`;
+            }
+            
+            if (enabled) {
+                statusText.textContent = `Extension is ON${userName}${statusSuffix}`;
+                statusText.className = 'status on';
+                toggleBtn.textContent = 'Turn OFF';
+                toggleBtn.className = 'btn btn-off';
+            } else {
+                statusText.textContent = `Extension is OFF${userName}`;
+                statusText.className = 'status off';
+                toggleBtn.textContent = 'Turn ON';
+                toggleBtn.className = 'btn btn-on';
+            }
+        });
     }
 });
 
