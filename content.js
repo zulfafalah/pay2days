@@ -1,37 +1,200 @@
 // Pay2Days Extension - Content Script
-// Extension untuk menambahkan informasi hari kerja di bawah delivery time pada halaman Shopee
+// Extension to add work days information below delivery time on Shopee pages
 
 console.log('Pay2Days Extension: Content script loaded');
 
-// Fungsi untuk menambahkan informasi hari kerja di bawah lokasi
+function extractPrice(deliveryElement) {
+    let searchElement = deliveryElement;
+    
+    // Go up to parent to find product container
+    for (let i = 0; i < 15 && searchElement.parentElement; i++) {
+        searchElement = searchElement.parentElement;
+        
+        // Stop if we reach the main item container
+        if (searchElement.classList.contains('shopee-search-item-result__item') || 
+            searchElement.classList.contains('flex-col') && searchElement.classList.contains('bg-white')) {
+            break;
+        }
+    }
+    
+    const priceSelectors = [
+        'span.truncate.text-base\\/5.font-medium',
+        '.text-shopee-primary span.truncate.text-base\\/5.font-medium',
+        '.truncate.flex.items-baseline span.truncate.text-base\\/5.font-medium',
+        'span.truncate.text-base\\/5',
+        'span[class*="text-base/5"]',
+        'span[class*="text-base"][class*="font-medium"]',
+        '.text-shopee-primary .font-medium',
+        '[class*="shopee-primary"] [class*="font-medium"]',
+        '.flex.items-baseline .font-medium',
+        '[class*="price"]',
+        '[data-testid*="price"]',
+        '.shopee-price'
+    ];
+    
+    for (const selector of priceSelectors) {
+        try {
+            const priceElements = searchElement.querySelectorAll(selector);
+            console.log(`Pay2Days: Selector "${selector}" found ${priceElements.length} elements`);
+            
+            for (const element of priceElements) {
+                const priceText = element.textContent.trim();
+                console.log(`Pay2Days: Checking text: "${priceText}"`);
+                
+                // Check if text contains numbers with Indonesian price format
+                if (/^\d{1,3}([\.,]\d{3})*$/.test(priceText) || /^\d{7,}$/.test(priceText.replace(/[.,]/g, ''))) {
+                    // Convert to number (remove thousand separators)
+                    const numericPrice = parseFloat(priceText.replace(/[.,]/g, ''));
+                    if (!isNaN(numericPrice) && numericPrice >= 1000) {
+                        console.log(`Pay2Days: Found price ${numericPrice} using selector: ${selector}`);
+                        return numericPrice;
+                    }
+                }
+            }
+        } catch (error) {
+            console.log(`Pay2Days: Selector error for "${selector}":`, error.message);
+        }
+    }
+    
+    // If not found with specific selectors, try broader regex pattern approach
+    console.log('Pay2Days: Trying pattern matching approach...');
+    
+    const allTextElements = searchElement.querySelectorAll('span, div');
+    const potentialPrices = [];
+    
+    for (const element of allTextElements) {
+        const text = element.textContent.trim();
+        
+        // Skip if element is too long or too short
+        if (text.length < 4 || text.length > 15) continue;
+        
+        // Patterns to detect Indonesian prices
+        const pricePatterns = [
+            /^(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{3})*)$/,
+            /^(\d{7,})$/,
+            /Rp\s*(\d{1,3}(?:[.,]\d{3})*)/i,
+        ];
+        
+        for (const pattern of pricePatterns) {
+            const match = text.match(pattern);
+            if (match) {
+                const priceStr = match[1];
+                const numericPrice = parseFloat(priceStr.replace(/[.,]/g, ''));
+                
+                // Validate reasonable price for electronic products (100,000 - 100,000,000)
+                if (!isNaN(numericPrice) && numericPrice >= 100000 && numericPrice <= 100000000) {
+                    potentialPrices.push({
+                        price: numericPrice,
+                        element: element,
+                        text: text,
+                        pattern: pattern.toString()
+                    });
+                    console.log(`Pay2Days: Found potential price ${numericPrice} from text "${text}"`);
+                }
+            }
+        }
+    }
+    
+    // If there are multiple prices, choose the most reasonable one (usually the largest reasonable price)
+    if (potentialPrices.length > 0) {
+        // Sort by price, take the largest (usually the main product price)
+        potentialPrices.sort((a, b) => b.price - a.price);
+        const selectedPrice = potentialPrices[0];
+        console.log(`Pay2Days: Selected price ${selectedPrice.price} from ${potentialPrices.length} candidates`);
+        return selectedPrice.price;
+    }
+    
+    console.log('Pay2Days: Price not found for element:', deliveryElement);
+    return null;
+}
+
+function calculateWorkDays(deliveryElement, workDaysInfoElement) {
+    console.log('Pay2Days: Starting price extraction for element:', deliveryElement);
+    
+    const itemPrice = extractPrice(deliveryElement);
+    console.log('Pay2Days: Extracted price:', itemPrice);
+    
+    chrome.storage.local.get(['salary', 'submittedData'], function(result) {
+        console.log('Pay2Days: Storage data:', result);
+        
+        let monthlySalary = null;
+        
+        // Prioritize submitted data
+        if (result.submittedData && result.submittedData.salary) {
+            monthlySalary = result.submittedData.salary;
+            console.log('Pay2Days: Using submitted salary:', monthlySalary);
+        } else if (result.salary) {
+            monthlySalary = parseFloat(result.salary);
+            console.log('Pay2Days: Using input salary:', monthlySalary);
+        } else {
+            console.log('Pay2Days: No salary data found');
+        }
+        
+        if (itemPrice && monthlySalary && monthlySalary > 0) {
+            const workingDays = (itemPrice / monthlySalary) * 22;
+            const roundedDays = Math.ceil(workingDays);
+            
+            console.log(`Pay2Days: Calculation - Price: ${itemPrice}, Salary: ${monthlySalary}, Working Days: ${workingDays}, Rounded: ${roundedDays}`);
+            
+            workDaysInfoElement.textContent = `${roundedDays} hari kerja`;
+            workDaysInfoElement.title = `Harga: Rp ${itemPrice.toLocaleString('id-ID')}\nGaji bulanan: Rp ${monthlySalary.toLocaleString('id-ID')}\nAnda perlu ${roundedDays} hari kerja untuk membeli barang ini`;
+            
+            // Change color based on number of work days
+            if (roundedDays <= 7) {
+                workDaysInfoElement.style.backgroundColor = '#4CAF50'; // Green - affordable
+            } else if (roundedDays <= 30) {
+                workDaysInfoElement.style.backgroundColor = '#FF9800'; // Orange - moderate
+            } else {
+                workDaysInfoElement.style.backgroundColor = '#F44336'; // Red - expensive
+            }
+            
+            console.log(`Pay2Days: Successfully calculated ${roundedDays} working days`);
+        } else {
+            // Fallback if data is incomplete
+            if (!monthlySalary) {
+                workDaysInfoElement.textContent = 'Set gaji dulu';
+                workDaysInfoElement.title = 'Silakan atur gaji bulanan di extension popup';
+                workDaysInfoElement.style.backgroundColor = '#9E9E9E';
+                console.log('Pay2Days: Missing salary data');
+            } else if (!itemPrice) {
+                workDaysInfoElement.textContent = 'Harga tidak ditemukan';
+                workDaysInfoElement.title = 'Tidak dapat menemukan harga produk';
+                workDaysInfoElement.style.backgroundColor = '#9E9E9E';
+                console.log('Pay2Days: Price extraction failed');
+            } else {
+                workDaysInfoElement.textContent = 'Error perhitungan';
+                workDaysInfoElement.title = 'Terjadi kesalahan dalam perhitungan';
+                workDaysInfoElement.style.backgroundColor = '#9E9E9E';
+                console.log('Pay2Days: Calculation error');
+            }
+        }
+    });
+}
+
 function addWorkDaysInfo() {
-    // Selector untuk elemen delivery time berdasarkan struktur DOM
     const deliveryTimeSelectors = [
-        '.truncate.text-sp10.font-normal.my\\:font-light.km\\:font-light.whitespace-nowrap.text-white', // Selector utama untuk delivery time
-        'div.truncate.text-sp10.font-normal.my\\:font-light.km\\:font-light.whitespace-nowrap.text-white' // Alternatif dengan tag div
+        '.truncate.text-sp10.font-normal.my\\:font-light.km\\:font-light.whitespace-nowrap.text-white',
+        'div.truncate.text-sp10.font-normal.my\\:font-light.km\\:font-light.whitespace-nowrap.text-white'
     ];
     
     let modifiedCount = 0;
     
-    // Coba setiap selector
     deliveryTimeSelectors.forEach(selector => {
         const deliveryElements = document.querySelectorAll(selector);
         
         deliveryElements.forEach((element, index) => {
-            // Cek apakah sudah pernah dimodifikasi (hindari duplikasi)
+            // Check if already modified (avoid duplication)
             if (!element.hasAttribute('data-pay2days-modified') && 
                 element.textContent.match(/(Jam|Hari|Besok|hari ini)/i)) {
                 
-                // Tandai sebagai sudah dimodifikasi
                 element.setAttribute('data-pay2days-modified', 'true');
                 
-                // Buat elemen info hari kerja
                 const workDaysInfo = document.createElement('div');
                 workDaysInfo.className = 'pay2days-workdays-info';
-                workDaysInfo.textContent = '12 hari kerja';
-                workDaysInfo.title = 'Anda perlu 12 hari kerja untuk membeli barang ini';
                 
-                // Styling untuk elemen info hari kerja - ditempatkan di bawah delivery time
+                calculateWorkDays(element, workDaysInfo);
+                
+                // Styling for work days info element - placed below delivery time
                 workDaysInfo.style.cssText = `
                     display: block;
                     margin-top: 8px;
@@ -52,21 +215,32 @@ function addWorkDaysInfo() {
                     text-align: left;
                 `;
                 
-                // Efek hover
+                // Hover effect - color will be set by calculateWorkDays
+                let originalColor = '#e65100';
+                
                 workDaysInfo.addEventListener('mouseenter', function() {
-                    this.style.backgroundColor = '#d84315';
+                    originalColor = this.style.backgroundColor;
+                    // Create darker hover color
+                    if (originalColor.includes('rgb(76, 175, 80)') || originalColor === '#4CAF50') {
+                        this.style.backgroundColor = '#388E3C';
+                    } else if (originalColor.includes('rgb(255, 152, 0)') || originalColor === '#FF9800') {
+                        this.style.backgroundColor = '#F57C00';
+                    } else if (originalColor.includes('rgb(244, 67, 54)') || originalColor === '#F44336') {
+                        this.style.backgroundColor = '#D32F2F';
+                    } else {
+                        this.style.backgroundColor = '#616161';
+                    }
                     this.style.transform = 'scale(1.05)';
                     this.style.boxShadow = '0 2px 6px rgba(0,0,0,0.3)';
                 });
                 
                 workDaysInfo.addEventListener('mouseleave', function() {
-                    this.style.backgroundColor = '#e65100';
+                    this.style.backgroundColor = originalColor;
                     this.style.transform = 'scale(1)';
                     this.style.boxShadow = '0 1px 3px rgba(0,0,0,0.2)';
                 });
                 
-                // Cari container yang berisi delivery info dan location
-                // Naik ke parent sampai ketemu container dengan class "flex items-center space-x-1"
+                // Find container that contains delivery info and location
                 let targetContainer = element;
                 while (targetContainer.parentElement) {
                     const parent = targetContainer.parentElement;
@@ -76,13 +250,13 @@ function addWorkDaysInfo() {
                     }
                     targetContainer = parent;
                     
-                    // Jangan naik terlalu tinggi
+                    // Don't go too high
                     if (parent.className && parent.className.includes('p-2 flex-1 flex flex-col')) {
                         break;
                     }
                 }
                 
-                // Tempatkan workDaysInfo setelah container delivery/location
+                // Place workDaysInfo after delivery/location container
                 if (targetContainer.parentElement) {
                     targetContainer.parentElement.insertBefore(workDaysInfo, targetContainer.nextSibling);
                     
@@ -97,16 +271,15 @@ function addWorkDaysInfo() {
     return modifiedCount;
 }
 
-// Fungsi untuk observasi perubahan DOM (untuk konten dinamis)
 function observeDOM() {
     const observer = new MutationObserver((mutations) => {
         let shouldModify = false;
         
         mutations.forEach((mutation) => {
-            // Cek apakah ada node baru yang ditambahkan
+            // Check if new nodes are added
             if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
                 mutation.addedNodes.forEach((node) => {
-                    // Cek apakah node yang ditambahkan mengandung elemen delivery time
+                    // Check if added node contains delivery time elements
                     if (node.nodeType === Node.ELEMENT_NODE) {
                         const hasDeliveryTime = node.querySelector && (
                             node.querySelector('.truncate.text-sp10.font-normal.my\\:font-light.km\\:font-light.whitespace-nowrap.text-white') ||
@@ -125,7 +298,7 @@ function observeDOM() {
             }
         });
         
-        // Jalankan modifikasi setelah delay singkat untuk memastikan DOM sudah stabil
+        // Run modification after short delay to ensure DOM is stable
         if (shouldModify) {
             setTimeout(() => {
                 const count = addWorkDaysInfo();
@@ -136,7 +309,7 @@ function observeDOM() {
         }
     });
     
-    // Mulai observasi pada seluruh document
+    // Start observing the entire document
     observer.observe(document.body, {
         childList: true,
         subtree: true
@@ -145,11 +318,10 @@ function observeDOM() {
     return observer;
 }
 
-// Fungsi utama yang dijalankan ketika extension aktif
 function initPay2Days() {
     console.log('Pay2Days Extension: Initializing...');
     
-    // Tunggu hingga DOM siap
+    // Wait until DOM is ready
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => {
             setTimeout(startModification, 500);
@@ -160,15 +332,13 @@ function initPay2Days() {
 }
 
 function startModification() {
-    // Modifikasi delivery time yang sudah ada
     const initialCount = addWorkDaysInfo();
     console.log(`Pay2Days: Initial modification completed. Added work days info to ${initialCount} delivery time elements.`);
     
-    // Mulai observasi untuk konten dinamis
     const observer = observeDOM();
     console.log('Pay2Days: DOM observer started for dynamic content');
     
-    // Periksa secara berkala (untuk memastikan tidak ada yang terlewat)
+    // Periodic check to ensure nothing is missed
     setInterval(() => {
         const count = addWorkDaysInfo();
         if (count > 0) {
@@ -177,11 +347,9 @@ function startModification() {
     }, 3000);
 }
 
-// Fungsi untuk debugging - menampilkan informasi DOM
 function debugDOMStructure() {
     console.log('Pay2Days Debug: Analyzing DOM structure...');
     
-    // Cari semua elemen yang mungkin mengandung delivery time
     const potentialDeliveryElements = document.querySelectorAll('[class*="text-white"], [class*="delivery"], .text-sp10, [class*="truncate"]');
     
     console.log(`Found ${potentialDeliveryElements.length} potential delivery time elements:`);
@@ -194,11 +362,42 @@ function debugDOMStructure() {
                 textContent: element.textContent.trim(),
                 innerHTML: element.innerHTML
             });
+            
+            const price = extractPrice(element);
+            console.log(`Price found for element ${index}:`, price);
+        }
+    });
+    
+    console.log('\n=== Price Elements Debug ===');
+    const priceSelectors = [
+        '.text-shopee-primary',
+        '[class*="shopee-primary"]',
+        '[class*="price"]',
+        '[class*="amount"]'
+    ];
+    
+    priceSelectors.forEach(selector => {
+        const elements = document.querySelectorAll(selector);
+        console.log(`Selector "${selector}" found ${elements.length} elements:`);
+        
+        elements.forEach((el, idx) => {
+            if (idx < 5) {
+                console.log(`  ${idx}: "${el.textContent.trim()}" - Classes: ${el.className}`);
+            }
+        });
+    });
+}
+
+function updateAllWorkDaysCalculations() {
+    const workDaysElements = document.querySelectorAll('.pay2days-workdays-info');
+    workDaysElements.forEach((workDaysElement) => {
+        const deliveryElement = workDaysElement.parentElement?.querySelector('[data-pay2days-modified="true"]');
+        if (deliveryElement) {
+            calculateWorkDays(deliveryElement, workDaysElement);
         }
     });
 }
 
-// Event listener untuk pesan dari popup atau background script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'debug') {
         debugDOMStructure();
@@ -208,13 +407,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             initPay2Days();
             sendResponse({status: 'extension enabled'});
         } else {
-            // Reset semua perubahan - hapus elemen info hari kerja
+            // Reset all changes - remove work days info elements
             const workDaysElements = document.querySelectorAll('.pay2days-workdays-info');
             workDaysElements.forEach(element => {
                 element.remove();
             });
             
-            // Reset attribute modified
+            // Reset modified attribute
             const modifiedElements = document.querySelectorAll('[data-pay2days-modified="true"]');
             modifiedElements.forEach(element => {
                 element.removeAttribute('data-pay2days-modified');
@@ -222,17 +421,20 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             
             sendResponse({status: 'extension disabled'});
         }
+    } else if (request.action === 'updateSalary') {
+        // Update all calculations when salary changes
+        updateAllWorkDaysCalculations();
+        sendResponse({status: 'salary updated'});
     }
 });
 
-// Cek apakah sedang berada di halaman Shopee
 function isShopeeSearchPage() {
     return window.location.hostname.includes('shopee') && 
            (window.location.pathname.includes('search') || 
             document.querySelector('.shopee-search-item-result__items'));
 }
 
-// Auto-start jika berada di halaman yang sesuai
+// Auto-start if on appropriate page
 if (isShopeeSearchPage()) {
     console.log('Pay2Days: Shopee search page detected, starting extension...');
     initPay2Days();
@@ -240,7 +442,7 @@ if (isShopeeSearchPage()) {
     console.log('Pay2Days: Not a Shopee search page, waiting for activation...');
 }
 
-// Export untuk testing (jika diperlukan)
+// Export for testing if needed
 window.Pay2Days = {
     addWorkDaysInfo,
     debugDOMStructure,
