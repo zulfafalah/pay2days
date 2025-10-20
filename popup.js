@@ -95,6 +95,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     salaryInput.addEventListener('input', function() {
+        // Format currency sebagai Indonesian Rupiah dengan pemisah ribuan
+        formatCurrencyInput(this);
         saveValues();
         updateSubmitButton();
         
@@ -139,7 +141,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Submit button event listener
     submitBtn.addEventListener('click', function() {
         const name = nameInput.value.trim();
-        const salary = salaryInput.value.trim();
+        const salary = getNumericValue(salaryInput.value.trim()); // Get numeric value
         const workingDays = workingDaysInput.value.trim();
         
         if (!name || !salary || !workingDays) {
@@ -187,13 +189,15 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     function saveValues() {
+        // Ambil nilai numerik dari salary input yang sudah diformat
+        const numericSalary = getNumericValue(salaryInput.value);
         const data = {
             name: nameInput.value,
-            salary: salaryInput.value,
+            salary: numericSalary, // Save numeric value without formatting
             workingDays: workingDaysInput.value
         };
         chrome.storage.local.set(data, function() {
-            console.log('Pay2Days: Values saved');
+            console.log('Pay2Days: Values saved', data);
         });
     }
     
@@ -203,7 +207,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 nameInput.value = result.name;
             }
             if (result.salary) {
-                salaryInput.value = result.salary;
+                // Pastikan salary adalah string numerik sebelum formatting
+                const numericSalary = result.salary.toString().replace(/[^\d]/g, '');
+                if (numericSalary) {
+                    salaryInput.value = formatNumberWithDots(numericSalary);
+                }
             }
             if (result.workingDays) {
                 workingDaysInput.value = result.workingDays;
@@ -212,9 +220,47 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    // Function untuk format input currency dengan pemisah ribuan
+    function formatCurrencyInput(input) {
+        // Ambil posisi kursor
+        const cursorPosition = input.selectionStart;
+        const originalValue = input.value;
+        
+        // Hapus semua karakter non-digit
+        let numericValue = originalValue.replace(/[^\d]/g, '');
+        
+        // Format dengan pemisah ribuan (titik)
+        const formattedValue = formatNumberWithDots(numericValue);
+        
+        // Set nilai yang sudah diformat
+        input.value = formattedValue;
+        
+        // Hitung posisi kursor baru berdasarkan jumlah titik yang ditambahkan
+        const dotsAdded = formattedValue.length - numericValue.length;
+        const newCursorPosition = Math.min(cursorPosition + dotsAdded, formattedValue.length);
+        
+        // Set posisi kursor
+        input.setSelectionRange(newCursorPosition, newCursorPosition);
+    }
+    
+    // Function untuk format angka dengan pemisah ribuan (titik)
+    function formatNumberWithDots(number) {
+        if (!number || number === '') return '';
+        // Pastikan input adalah string dan hanya mengandung angka
+        const numStr = number.toString().replace(/[^\d]/g, '');
+        if (numStr === '') return '';
+        return numStr.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    }
+    
+    // Function untuk mendapatkan nilai numerik dari input yang sudah diformat
+    function getNumericValue(formattedValue) {
+        if (!formattedValue) return '';
+        return formattedValue.toString().replace(/[^\d]/g, '');
+    }
+    
     function updateSubmitButton() {
         const hasName = nameInput.value.trim() !== '';
-        const hasSalary = salaryInput.value.trim() !== '';
+        const hasSalary = getNumericValue(salaryInput.value.trim()) !== '';
         const hasWorkingDays = workingDaysInput.value.trim() !== '';
         
         if (hasName && hasSalary && hasWorkingDays) {
