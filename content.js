@@ -114,30 +114,38 @@ function calculateWorkDays(deliveryElement, workDaysInfoElement) {
     const itemPrice = extractPrice(deliveryElement);
     console.log('Pay2Days: Extracted price:', itemPrice);
     
-    chrome.storage.local.get(['salary', 'submittedData'], function(result) {
+    chrome.storage.local.get(['salary', 'workingDays', 'submittedData'], function(result) {
         console.log('Pay2Days: Storage data:', result);
         
         let monthlySalary = null;
+        let workingDaysPerMonth = 22; // default value
         
         // Prioritize submitted data
         if (result.submittedData && result.submittedData.salary) {
             monthlySalary = result.submittedData.salary;
-            console.log('Pay2Days: Using submitted salary:', monthlySalary);
-        } else if (result.salary) {
-            monthlySalary = parseFloat(result.salary);
-            console.log('Pay2Days: Using input salary:', monthlySalary);
+            workingDaysPerMonth = result.submittedData.workingDays || 22;
+            console.log('Pay2Days: Using submitted data - salary:', monthlySalary, 'working days:', workingDaysPerMonth);
         } else {
-            console.log('Pay2Days: No salary data found');
+            if (result.salary) {
+                monthlySalary = parseFloat(result.salary);
+                console.log('Pay2Days: Using input salary:', monthlySalary);
+            }
+            if (result.workingDays) {
+                workingDaysPerMonth = parseInt(result.workingDays);
+                console.log('Pay2Days: Using input working days:', workingDaysPerMonth);
+            } else {
+                console.log('Pay2Days: Using default working days:', workingDaysPerMonth);
+            }
         }
         
-        if (itemPrice && monthlySalary && monthlySalary > 0) {
-            const workingDays = (itemPrice / monthlySalary) * 22;
+        if (itemPrice && monthlySalary && monthlySalary > 0 && workingDaysPerMonth > 0) {
+            const workingDays = (itemPrice / monthlySalary) * workingDaysPerMonth;
             const roundedDays = Math.ceil(workingDays);
             
-            console.log(`Pay2Days: Calculation - Price: ${itemPrice}, Salary: ${monthlySalary}, Working Days: ${workingDays}, Rounded: ${roundedDays}`);
+            console.log(`Pay2Days: Calculation - Price: ${itemPrice}, Salary: ${monthlySalary}, Working Days per Month: ${workingDaysPerMonth}, Working Days: ${workingDays}, Rounded: ${roundedDays}`);
             
             workDaysInfoElement.textContent = `${roundedDays} hari kerja`;
-            workDaysInfoElement.title = `Harga: Rp ${itemPrice.toLocaleString('id-ID')}\nGaji bulanan: Rp ${monthlySalary.toLocaleString('id-ID')}\nAnda perlu ${roundedDays} hari kerja untuk membeli barang ini`;
+            workDaysInfoElement.title = `Harga: Rp ${itemPrice.toLocaleString('id-ID')}\nGaji bulanan: Rp ${monthlySalary.toLocaleString('id-ID')}\nHari kerja per bulan: ${workingDaysPerMonth}\nAnda perlu ${roundedDays} hari kerja untuk membeli barang ini`;
             
             // Change color based on number of work days
             if (roundedDays <= 7) {
