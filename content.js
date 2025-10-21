@@ -3,6 +3,9 @@
 
 console.log('Pay2Days Extension: Content script loaded');
 
+// Global state variable to track if extension is enabled
+let isExtensionEnabled = true;
+
 function extractPrice(deliveryElement) {
     let searchElement = deliveryElement;
     
@@ -180,103 +183,112 @@ function calculateWorkDays(deliveryElement, workDaysInfoElement) {
 }
 
 function addWorkDaysInfo() {
-    const deliveryTimeSelectors = [
-        '.truncate.text-sp10.font-normal.my\\:font-light.km\\:font-light.whitespace-nowrap.text-white',
-        'div.truncate.text-sp10.font-normal.my\\:font-light.km\\:font-light.whitespace-nowrap.text-white'
-    ];
+    // Check if extension is enabled before adding work days info
+    if (!isExtensionEnabled) {
+        console.log('Pay2Days: Extension is disabled, skipping work days info addition');
+        return Promise.resolve(0);
+    }
     
-    let modifiedCount = 0;
-    
-    deliveryTimeSelectors.forEach(selector => {
-        const deliveryElements = document.querySelectorAll(selector);
+    return new Promise((resolve) => {
+            
+            const deliveryTimeSelectors = [
+                '.truncate.text-sp10.font-normal.my\\:font-light.km\\:font-light.whitespace-nowrap.text-white',
+                'div.truncate.text-sp10.font-normal.my\\:font-light.km\\:font-light.whitespace-nowrap.text-white'
+            ];
+            
+            let modifiedCount = 0;
         
-        deliveryElements.forEach((element, index) => {
-            // Check if already modified (avoid duplication)
-            if (!element.hasAttribute('data-pay2days-modified') && 
-                element.textContent.match(/(Jam|Hari|Besok|hari ini)/i)) {
+            deliveryTimeSelectors.forEach(selector => {
+                const deliveryElements = document.querySelectorAll(selector);
                 
-                element.setAttribute('data-pay2days-modified', 'true');
-                
-                const workDaysInfo = document.createElement('div');
-                workDaysInfo.className = 'pay2days-workdays-info';
-                
-                calculateWorkDays(element, workDaysInfo);
-                
-                // Styling for work days info element - placed below delivery time
-                workDaysInfo.style.cssText = `
-                    display: block;
-                    margin-top: 8px;
-                    margin-left: 0;
-                    margin-right: auto;
-                    padding: 3px 8px;
-                    background-color: #e65100;
-                    color: white;
-                    font-size: 10px;
-                    border-radius: 4px;
-                    font-weight: 500;
-                    cursor: help;
-                    text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
-                    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-                    transition: all 0.2s ease;
-                    width: fit-content;
-                    max-width: 100%;
-                    text-align: left;
-                `;
-                
-                // Hover effect - color will be set by calculateWorkDays
-                let originalColor = '#e65100';
-                
-                workDaysInfo.addEventListener('mouseenter', function() {
-                    originalColor = this.style.backgroundColor;
-                    // Create darker hover color
-                    if (originalColor.includes('rgb(76, 175, 80)') || originalColor === '#4CAF50') {
-                        this.style.backgroundColor = '#388E3C';
-                    } else if (originalColor.includes('rgb(255, 152, 0)') || originalColor === '#FF9800') {
-                        this.style.backgroundColor = '#F57C00';
-                    } else if (originalColor.includes('rgb(244, 67, 54)') || originalColor === '#F44336') {
-                        this.style.backgroundColor = '#D32F2F';
-                    } else {
-                        this.style.backgroundColor = '#616161';
+                deliveryElements.forEach((element, index) => {
+                    // Check if already modified (avoid duplication)
+                    if (!element.hasAttribute('data-pay2days-modified') && 
+                        element.textContent.match(/(Jam|Hari|Besok|hari ini)/i)) {
+                        
+                        element.setAttribute('data-pay2days-modified', 'true');
+                        
+                        const workDaysInfo = document.createElement('div');
+                        workDaysInfo.className = 'pay2days-workdays-info';
+                        
+                        calculateWorkDays(element, workDaysInfo);
+                        
+                        // Styling for work days info element - placed below delivery time
+                        workDaysInfo.style.cssText = `
+                            display: block;
+                            margin-top: 8px;
+                            margin-left: 0;
+                            margin-right: auto;
+                            padding: 3px 8px;
+                            background-color: #e65100;
+                            color: white;
+                            font-size: 10px;
+                            border-radius: 4px;
+                            font-weight: 500;
+                            cursor: help;
+                            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+                            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+                            transition: all 0.2s ease;
+                            width: fit-content;
+                            max-width: 100%;
+                            text-align: left;
+                        `;
+                        
+                        // Hover effect - color will be set by calculateWorkDays
+                        let originalColor = '#e65100';
+                        
+                        workDaysInfo.addEventListener('mouseenter', function() {
+                            originalColor = this.style.backgroundColor;
+                            // Create darker hover color
+                            if (originalColor.includes('rgb(76, 175, 80)') || originalColor === '#4CAF50') {
+                                this.style.backgroundColor = '#388E3C';
+                            } else if (originalColor.includes('rgb(255, 152, 0)') || originalColor === '#FF9800') {
+                                this.style.backgroundColor = '#F57C00';
+                            } else if (originalColor.includes('rgb(244, 67, 54)') || originalColor === '#F44336') {
+                                this.style.backgroundColor = '#D32F2F';
+                            } else {
+                                this.style.backgroundColor = '#616161';
+                            }
+                            this.style.transform = 'scale(1.05)';
+                            this.style.boxShadow = '0 2px 6px rgba(0,0,0,0.3)';
+                        });
+                        
+                        workDaysInfo.addEventListener('mouseleave', function() {
+                            this.style.backgroundColor = originalColor;
+                            this.style.transform = 'scale(1)';
+                            this.style.boxShadow = '0 1px 3px rgba(0,0,0,0.2)';
+                        });
+                        
+                        // Find container that contains delivery info and location
+                        let targetContainer = element;
+                        while (targetContainer.parentElement) {
+                            const parent = targetContainer.parentElement;
+                            if (parent.className && parent.className.includes('flex items-center space-x-1')) {
+                                targetContainer = parent;
+                                break;
+                            }
+                            targetContainer = parent;
+                            
+                            // Don't go too high
+                            if (parent.className && parent.className.includes('p-2 flex-1 flex flex-col')) {
+                                break;
+                            }
+                        }
+                        
+                        // Place workDaysInfo after delivery/location container
+                        if (targetContainer.parentElement) {
+                            targetContainer.parentElement.insertBefore(workDaysInfo, targetContainer.nextSibling);
+                            
+                            modifiedCount++;
+                            
+                            console.log(`Pay2Days: Added work days info below delivery time ${index + 1}`);
+                        }
                     }
-                    this.style.transform = 'scale(1.05)';
-                    this.style.boxShadow = '0 2px 6px rgba(0,0,0,0.3)';
                 });
-                
-                workDaysInfo.addEventListener('mouseleave', function() {
-                    this.style.backgroundColor = originalColor;
-                    this.style.transform = 'scale(1)';
-                    this.style.boxShadow = '0 1px 3px rgba(0,0,0,0.2)';
-                });
-                
-                // Find container that contains delivery info and location
-                let targetContainer = element;
-                while (targetContainer.parentElement) {
-                    const parent = targetContainer.parentElement;
-                    if (parent.className && parent.className.includes('flex items-center space-x-1')) {
-                        targetContainer = parent;
-                        break;
-                    }
-                    targetContainer = parent;
-                    
-                    // Don't go too high
-                    if (parent.className && parent.className.includes('p-2 flex-1 flex flex-col')) {
-                        break;
-                    }
-                }
-                
-                // Place workDaysInfo after delivery/location container
-                if (targetContainer.parentElement) {
-                    targetContainer.parentElement.insertBefore(workDaysInfo, targetContainer.nextSibling);
-                    
-                    modifiedCount++;
-                    
-                    console.log(`Pay2Days: Added work days info below delivery time ${index + 1}`);
-                }
-            }
+            });
+            
+            resolve(modifiedCount);
         });
-    });
-    
-    return modifiedCount;
 }
 
 function observeDOM() {
@@ -308,8 +320,8 @@ function observeDOM() {
         
         // Run modification after short delay to ensure DOM is stable
         if (shouldModify) {
-            setTimeout(() => {
-                const count = addWorkDaysInfo();
+            setTimeout(async () => {
+                const count = await addWorkDaysInfo();
                 if (count > 0) {
                     console.log(`Pay2Days: Added work days info to ${count} new delivery time elements`);
                 }
@@ -339,18 +351,20 @@ function initPay2Days() {
     }
 }
 
-function startModification() {
-    const initialCount = addWorkDaysInfo();
+async function startModification() {
+    const initialCount = await addWorkDaysInfo();
     console.log(`Pay2Days: Initial modification completed. Added work days info to ${initialCount} delivery time elements.`);
     
     const observer = observeDOM();
     console.log('Pay2Days: DOM observer started for dynamic content');
     
-    // Periodic check to ensure nothing is missed
-    setInterval(() => {
-        const count = addWorkDaysInfo();
-        if (count > 0) {
-            console.log(`Pay2Days: Periodic check - Added work days info to ${count} additional delivery time elements`);
+    // Periodic check to ensure nothing is missed - but only if extension is enabled
+    setInterval(async () => {
+        if (isExtensionEnabled) {
+            const count = await addWorkDaysInfo();
+            if (count > 0) {
+                console.log(`Pay2Days: Periodic check - Added work days info to ${count} additional delivery time elements`);
+            }
         }
     }, 3000);
 }
@@ -411,10 +425,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         debugDOMStructure();
         sendResponse({status: 'debug completed'});
     } else if (request.action === 'toggleExtension') {
+        // Update local state
+        isExtensionEnabled = request.enabled;
+        
         if (request.enabled) {
+            console.log('Pay2Days: Extension enabled, initializing...');
             initPay2Days();
             sendResponse({status: 'extension enabled'});
         } else {
+            console.log('Pay2Days: Extension disabled, cleaning up...');
             // Reset all changes - remove work days info elements
             const workDaysElements = document.querySelectorAll('.pay2days-workdays-info');
             workDaysElements.forEach(element => {
@@ -430,8 +449,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             sendResponse({status: 'extension disabled'});
         }
     } else if (request.action === 'updateSalary') {
-        // Update all calculations when salary changes
-        updateAllWorkDaysCalculations();
+        // Update all calculations when salary changes - but only if extension is enabled
+        if (isExtensionEnabled) {
+            updateAllWorkDaysCalculations();
+        }
         sendResponse({status: 'salary updated'});
     }
 });
@@ -442,10 +463,19 @@ function isShopeeSearchPage() {
             document.querySelector('.shopee-search-item-result__items'));
 }
 
-// Auto-start if on appropriate page
+// Auto-start if on appropriate page and extension is enabled
 if (isShopeeSearchPage()) {
-    console.log('Pay2Days: Shopee search page detected, starting extension...');
-    initPay2Days();
+    console.log('Pay2Days: Shopee search page detected, checking extension state...');
+    chrome.runtime.sendMessage({action: 'getState'}, function(response) {
+        if (response && response.enabled) {
+            console.log('Pay2Days: Extension is enabled, starting...');
+            isExtensionEnabled = true;
+            initPay2Days();
+        } else {
+            console.log('Pay2Days: Extension is disabled, not starting automatically');
+            isExtensionEnabled = false;
+        }
+    });
 } else {
     console.log('Pay2Days: Not a Shopee search page, waiting for activation...');
 }

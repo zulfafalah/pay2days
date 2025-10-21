@@ -81,16 +81,14 @@ chrome.tabs.onActivated.addListener((activeInfo) => {
         if (tab.url && tab.url.includes('shopee')) {
             console.log('Pay2Days: Shopee tab activated', tab.url);
             
-            // Kirim pesan ke content script jika extension enabled
-            if (extensionState.enabled) {
-                chrome.tabs.sendMessage(activeInfo.tabId, {
-                    action: 'toggleExtension',
-                    enabled: true
-                }).catch(() => {
-                    // Content script mungkin belum siap, ini normal
-                    console.log('Pay2Days: Content script not ready yet');
-                });
-            }
+            // Kirim pesan ke content script dengan current state
+            chrome.tabs.sendMessage(activeInfo.tabId, {
+                action: 'toggleExtension',
+                enabled: extensionState.enabled
+            }).catch(() => {
+                // Content script mungkin belum siap, ini normal
+                console.log('Pay2Days: Content script not ready yet');
+            });
         }
     });
 });
@@ -103,14 +101,13 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         
         // Delay sebentar untuk memastikan content script sudah dimuat
         setTimeout(() => {
-            if (extensionState.enabled) {
-                chrome.tabs.sendMessage(tabId, {
-                    action: 'toggleExtension',
-                    enabled: true
-                }).catch(() => {
-                    console.log('Pay2Days: Content script not ready on page load');
-                });
-            }
+            // Selalu kirim current state ke content script
+            chrome.tabs.sendMessage(tabId, {
+                action: 'toggleExtension',
+                enabled: extensionState.enabled
+            }).catch(() => {
+                console.log('Pay2Days: Content script not ready on page load');
+            });
         }, 1000);
     }
 });
