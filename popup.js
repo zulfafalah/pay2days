@@ -3,7 +3,6 @@
 
 document.addEventListener('DOMContentLoaded', function() {
     const toggleBtn = document.getElementById('toggleBtn');
-    const statusText = document.getElementById('status');
     const nameInput = document.getElementById('nameInput');
     const salaryInput = document.getElementById('salaryInput');
     const workingDaysInput = document.getElementById('workingDaysInput');
@@ -15,10 +14,7 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error('Pay2Days: toggleBtn element not found');
         return;
     }
-    if (!statusText) {
-        console.error('Pay2Days: status element not found');
-        return;
-    }
+
     if (!nameInput || !salaryInput || !workingDaysInput || !submitBtn) {
         console.error('Pay2Days: One or more input elements not found');
         return;
@@ -284,13 +280,10 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             if (enabled) {
-                statusText.textContent = `Extension is ON${userName}${statusSuffix}`;
-                statusText.className = 'status on';
                 toggleBtn.textContent = 'Turn OFF';
                 toggleBtn.className = 'btn btn-off';
+                
             } else {
-                statusText.textContent = `Extension is OFF${userName}`;
-                statusText.className = 'status off';
                 toggleBtn.textContent = 'Turn ON';
                 toggleBtn.className = 'btn btn-on';
             }
